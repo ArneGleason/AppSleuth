@@ -1,45 +1,56 @@
  (cd "$(git rev-parse --show-toplevel)" && git apply --3way <<'EOF' 
-diff --git a//dev/null b/appsleuth/classify.py
-index 0000000000000000000000000000000000000000..00c4465fffee3784070e54448aea1879032bbbb5 100644
+diff --git a//dev/null b/appsleuth/inventory.py
+index 0000000000000000000000000000000000000000..024731b41ee03a84411e438a33c386a01551c87e 100644
 --- a//dev/null
-+++ b/appsleuth/classify.py
-@@ -0,0 +1,37 @@
++++ b/appsleuth/inventory.py
+@@ -0,0 +1,48 @@
++import asyncio
++import json
 +import pathlib
-+from typing import Iterable
-+
-+from .inventory import AppRecord
++import subprocess
++from dataclasses import dataclass
++from typing import Iterable, List
 +
 +APP_SUPPORT = pathlib.Path.home() / 'Library' / 'Application Support' / 'AppSleuth'
-+DEFAULT_CORE_WHITELIST = APP_SUPPORT / 'core_whitelist.txt'
-+APPROVED_APPS = APP_SUPPORT / 'approved_apps.txt'
++APP_SUPPORT.mkdir(parents=True, exist_ok=True)
++INVENTORY_PATH = APP_SUPPORT / 'full_inventory.json'
 +
 +
-+class Classifier:
-+    def __init__(self, core_whitelist: pathlib.Path | None = None):
-+        self.core_whitelist = core_whitelist or DEFAULT_CORE_WHITELIST
-+        self.core_whitelist.touch(exist_ok=True)
-+        APPROVED_APPS.touch(exist_ok=True)
-+        self._core = {line.strip() for line in self.core_whitelist.read_text().splitlines() if line.strip()}
-+        self._approved = {line.strip() for line in APPROVED_APPS.read_text().splitlines() if line.strip()}
++@dataclass
++class AppRecord:
++    name: str
++    path: pathlib.Path
++    obtained_from: str
++    signed_by_apple: bool
 +
-+    def mark(self, record: AppRecord) -> None:
-+        record.essential = self.is_essential(record)
-+        record.candidate = (not record.essential) and (record.name not in self._approved)
 +
-+    def classify(self, records: Iterable[AppRecord]) -> Iterable[AppRecord]:
-+        for rec in records:
-+            self.mark(rec)
-+            yield rec
++def _parse_records(data: dict) -> List[AppRecord]:
++    apps = []
++    items = data.get('SPApplicationsDataType', [])
++    for item in items:
++        path = pathlib.Path(item.get('path', ''))
++        apps.append(
++            AppRecord(
++                name=item.get('_name', path.name),
++                path=path,
++                obtained_from=item.get('obtained_from', 'Unknown'),
++                signed_by_apple=item.get('signed_by_apple', False),
++            )
++        )
++    return apps
 +
-+    def is_essential(self, record: AppRecord) -> bool:
-+        if str(record.path).startswith('/System/'):
-+            return True
-+        if (record.obtained_from in {'Apple', 'Mac App Store'} and
-+                str(record.path).startswith('/Applications/Utilities')):
-+            return True
-+        if record.name in self._core:
-+            return True
-+        return False
++
++async def gather_inventory() -> List[AppRecord]:
++    loop = asyncio.get_running_loop()
++    proc = await asyncio.create_subprocess_exec(
++        'system_profiler', 'SPApplicationsDataType', '-json',
++        stdout=subprocess.PIPE,
++        stderr=subprocess.PIPE,
++    )
++    stdout, _ = await proc.communicate()
++    INVENTORY_PATH.write_bytes(stdout)
++    data = json.loads(stdout)
++    return _parse_records(data)
 +
  
 EOF
