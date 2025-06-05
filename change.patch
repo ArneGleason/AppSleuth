@@ -1,42 +1,20 @@
  (cd "$(git rev-parse --show-toplevel)" && git apply --3way <<'EOF' 
-diff --git a/app_sleuth.py b/app_sleuth.py
-index e69de29bb2d1d6434b8b29ae775ad8c2e48c5391..794a8208f9d1cf68b6c3fad9003839565744ad4e undefined
---- a/app_sleuth.py
-+++ b/app_sleuth.py
-@@ -0,0 +1,34 @@
-+#!/usr/bin/env python3
-+import argparse
-+import asyncio
-+from pathlib import Path
+diff --git a//dev/null b/appsleuth/__init__.py
+index 0000000000000000000000000000000000000000..d4575711d7861c55abad1efb2db31a7c5b9b1a5a 100644
+--- a//dev/null
++++ b/appsleuth/__init__.py
+@@ -0,0 +1,12 @@
++"""AppSleuth package."""
 +
-+from appsleuth import gather_inventory, Classifier
-+from appsleuth.ui import simple_cli
-+from appsleuth.report import export_csv, export_json
++from .inventory import AppRecord, gather_inventory
++from .classify import Classifier
++from .remover import remove_apps
++from .report import export_csv, export_json
 +
-+
-+def parse_args() -> argparse.Namespace:
-+    p = argparse.ArgumentParser(description='AppSleuth utility')
-+    p.add_argument('--export-csv', type=Path)
-+    p.add_argument('--export-json', type=Path)
-+    return p.parse_args()
-+
-+
-+async def main() -> None:
-+    args = parse_args()
-+    records = await gather_inventory()
-+    classifier = Classifier()
-+    records = list(classifier.classify(records))
-+
-+    if args.export_csv:
-+        export_csv(records, args.export_csv)
-+    if args.export_json:
-+        export_json(records, args.export_json)
-+
-+    await simple_cli(records)
-+
-+
-+if __name__ == '__main__':
-+    asyncio.run(main())
++__all__ = [
++    'AppRecord', 'gather_inventory', 'Classifier',
++    'remove_apps', 'export_csv', 'export_json'
++]
 +
  
 EOF
