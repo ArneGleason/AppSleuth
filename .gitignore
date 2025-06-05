@@ -1,3 +1,7 @@
 *.py[cod]
 __pycache__/
 .venv/
+.DS_Store
+removable_candidates.txt
+.DS_Store
+removable_candidates.txt
