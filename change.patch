@@ -1,63 +1,35 @@
  (cd "$(git rev-parse --show-toplevel)" && git apply --3way <<'EOF' 
-diff --git a//dev/null b/appsleuth/remover.py
-index 0000000000000000000000000000000000000000..d5c660eb4603c0e8cdbaeafd36637dcd1e466262 100644
+diff --git a//dev/null b/appsleuth/report.py
+index 0000000000000000000000000000000000000000..5c66a15d7fc12f3055e502b2b6e64d94bb0914ed 100644
 --- a//dev/null
-+++ b/appsleuth/remover.py
-@@ -0,0 +1,55 @@
-+import logging
-+import os
++++ b/appsleuth/report.py
+@@ -0,0 +1,27 @@
++import csv
++import json
 +import pathlib
-+import shutil
-+import subprocess
-+from typing import Iterable, List
++from typing import Iterable
 +
 +from .inventory import AppRecord
 +
-+APP_SUPPORT = pathlib.Path.home() / 'Library' / 'Application Support' / 'AppSleuth'
-+LOG_PATH = APP_SUPPORT / 'actions.log'
-+logging.basicConfig(filename=LOG_PATH, level=logging.INFO, format='%(asctime)s %(message)s')
 +
-+TRASH_DIR = pathlib.Path.home() / '.Trash'
-+
-+
-+def _move_to_trash(path: pathlib.Path) -> pathlib.Path | None:
-+    """Move path to the user's Trash. Returns the new location or None."""
-+    try:
-+        dest = TRASH_DIR / path.name
-+        shutil.move(str(path), dest)
-+        logging.info('Trashed %s', path)
-+        return dest
-+    except Exception as e:
-+        logging.warning('Trash failed for %s: %s', path, e)
-+        return None
++def export_json(records: Iterable[AppRecord], path: pathlib.Path) -> None:
++    data = [record.__dict__ for record in records]
++    path.write_text(json.dumps(data, indent=2))
 +
 +
-+def _sudo_remove(path: pathlib.Path) -> bool:
-+    cmd = ['sudo', 'rm', '-rf', str(path)]
-+    result = subprocess.run(cmd, capture_output=True)
-+    if result.returncode == 0:
-+        logging.info('Deleted %s via sudo', path)
-+        return True
-+    logging.error('Failed sudo delete %s: %s', path, result.stderr)
-+    return False
-+
-+
-+def remove_apps(records: Iterable[AppRecord]) -> List[pathlib.Path]:
-+    removed: List[pathlib.Path] = []
-+    sudo_needed: List[pathlib.Path] = []
-+    for rec in records:
-+        new_path = _move_to_trash(rec.path)
-+        if new_path:
-+            removed.append(new_path)
-+        else:
-+            sudo_needed.append(rec.path)
-+    if sudo_needed:
-+        subprocess.run(['sudo', '-v'])
-+        for path in sudo_needed:
-+            if _sudo_remove(path):
-+                removed.append(path)
-+    return removed
-+
++def export_csv(records: Iterable[AppRecord], path: pathlib.Path) -> None:
++    with path.open('w', newline='') as f:
++        writer = csv.DictWriter(f, fieldnames=['name', 'path', 'obtained_from', 'signed_by_apple', 'essential', 'candidate'])
++        writer.writeheader()
++        for r in records:
++            writer.writerow({
++                'name': r.name,
++                'path': r.path,
++                'obtained_from': r.obtained_from,
++                'signed_by_apple': r.signed_by_apple,
++                'essential': getattr(r, 'essential', False),
++                'candidate': getattr(r, 'candidate', False),
++            })
 +
  
 EOF
