@@ -1,35 +1,22 @@
  (cd "$(git rev-parse --show-toplevel)" && git apply --3way <<'EOF' 
-diff --git a//dev/null b/appsleuth/report.py
-index 0000000000000000000000000000000000000000..5c66a15d7fc12f3055e502b2b6e64d94bb0914ed 100644
+diff --git a//dev/null b/appsleuth/ui.py
+index 0000000000000000000000000000000000000000..7e391b78528918954abef83fe7e5419be4e48239 100644
 --- a//dev/null
-+++ b/appsleuth/report.py
-@@ -0,0 +1,27 @@
-+import csv
-+import json
-+import pathlib
++++ b/appsleuth/ui.py
+@@ -0,0 +1,14 @@
++import asyncio
 +from typing import Iterable
 +
 +from .inventory import AppRecord
++from .classify import Classifier
 +
 +
-+def export_json(records: Iterable[AppRecord], path: pathlib.Path) -> None:
-+    data = [record.__dict__ for record in records]
-+    path.write_text(json.dumps(data, indent=2))
++async def simple_cli(records: Iterable[AppRecord]) -> None:
++    print("Name\tPath\tEssential\tCandidate")
++    for r in records:
++        print(f"{r.name}\t{r.path}\t{getattr(r, 'essential', False)}\t{getattr(r, 'candidate', False)}")
++    print("Done")
 +
-+
-+def export_csv(records: Iterable[AppRecord], path: pathlib.Path) -> None:
-+    with path.open('w', newline='') as f:
-+        writer = csv.DictWriter(f, fieldnames=['name', 'path', 'obtained_from', 'signed_by_apple', 'essential', 'candidate'])
-+        writer.writeheader()
-+        for r in records:
-+            writer.writerow({
-+                'name': r.name,
-+                'path': r.path,
-+                'obtained_from': r.obtained_from,
-+                'signed_by_apple': r.signed_by_apple,
-+                'essential': getattr(r, 'essential', False),
-+                'candidate': getattr(r, 'candidate', False),
-+            })
 +
  
 EOF
